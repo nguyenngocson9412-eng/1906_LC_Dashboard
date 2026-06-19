@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Chat Ops Brief & Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>DAILY CHAT OPS BRIEF</h1>
+            <p>Hệ thống quản lý dữ liệu phân luồng vận hành LiveChat</p>
+        </div>
+        <div class="header-right">
+            <div class="filter-box">
+                <label>ETC (Dự án):</label>
+                <select id="filter-etc" onchange="onFilterChange()"></select>
+            </div>
+            <div class="filter-box">
+                <label>Ngày báo cáo:</label>
+                <select id="filter-date" onchange="onFilterChange()"></select>
+            </div>
+        </div>
+    </header>
+
+    <nav class="tab-navigation">
+        <button class="tab-btn active" onclick="toggleTab('dashboard-panel', this)">📊 View Dashboard</button>
+        <button class="tab-btn" onclick="toggleTab('editor-panel', this)">📝 Nhập & Chỉnh sửa Dữ liệu</button>
+        <button class="sync-cloud-btn" onclick="saveToGoogleSheet()">☁️ Đồng bộ lên Google Sheet</button>
+    </nav>
+
+    <main class="content-container">
+        <section id="dashboard-panel" class="tab-panel active">
+            <div class="top-kpi-row">
+                <div class="kpi-card">
+                    <div class="card-lbl">Chat Volume</div>
+                    <div class="card-val" id="kpi-vol">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="card-lbl">Total Chat Transfer</div>
+                    <div class="card-val" id="kpi-total-trans">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="card-lbl">Chat Users</div>
+                    <div class="card-val" id="kpi-users">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="card-lbl">Transfer Fail (Left Queue)</div>
+                    <div class="card-val" id="kpi-queued">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="card-lbl">Assisted (CSR Support)</div>
+                    <div class="card-val" id="kpi-assisted">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="card-lbl">% Assisted / Total Chat Transfer</div>
+                    <div class="card-val text-green" id="kpi-rate">0%</div>
+                </div>
+            </div>
+
+            <div class="target-sub-bar">
+                🎯 Target tiếp nhận: <span id="sub-target" class="bold">0</span> | 
+                📈 Tỷ lệ KPI tiếp nhận (Assisted / Target): <span id="sub-kpi" class="bold text-green">0%</span>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="grid-left-tree">
+                    <h2 class="section-title">DETAILS (SƠ ĐỒ LUỒNG PHÂN PHỐI CHAT)</h2>
+                    <div id="treeContainer" class="tree-container">
+                        <svg id="treeSvg"></svg>
+                        
+                        <div class="tree-col col-1">
+                            <div class="node-box" id="n-total">
+                                <div class="node-title">Total Chat</div>
+                                <div class="node-num" id="v-total">0</div>
+                                <div class="node-pct" id="p-total">100%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="tree-col col-2">
+                            <div class="node-box border-blue" id="n-havebot">
+                                <div class="node-title">Have Bot</div>
+                                <div class="node-num" id="v-havebot">0</div>
+                                <div class="node-pct" id="p-havebot">0%</div>
+                            </div>
+                            <div class="node-box border-purple" id="n-nobot">
+                                <div class="node-title">No Bot</div>
+                                <div class="node-num" id="v-nobot">0</div>
+                                <div class="node-pct" id="p-nobot">0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="tree-col col-3">
+                            <div class="node-box" id="n-escalation">
+                                <div class="node-title">BOT Escalation (Transfer)</div>
+                                <div class="node-num" id="v-escalation">0</div>
+                                <div class="node-pct" id="p-escalation">0%</div>
+                            </div>
+                            <div class="node-box" id="n-botonly">
+                                <div class="node-title">BOT only / End</div>
+                                <div class="node-num" id="v-botonly">0</div>
+                                <div class="node-pct" id="p-botonly">0%</div>
+                            </div>
+                            <div class="node-box" id="n-csrpick">
+                                <div class="node-title">Chat CSR pick from chatbot</div>
+                                <div class="node-num" id="v-csrpick">0</div>
+                                <div class="node-pct" id="p-csrpick">0%</div>
+                            </div>
+                            <div class="node-box" id="n-csronly">
+                                <div class="node-title">CSR only</div>
+                                <div class="node-num" id="v-csronly">0</div>
+                                <div class="node-pct" id="p-csronly">100%</div>
+                            </div>
+                            <div class="node-box" id="n-unassigned">
+                                <div class="node-title">Unassigned</div>
+                                <div class="node-num" id="v-unassigned">0</div>
+                                <div class="node-pct" id="p-unassigned">0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="tree-col col-4">
+                            <div class="node-box border-green" id="n-success">
+                                <div class="node-title">Transfer Success</div>
+                                <div class="node-num" id="v-success">0</div>
+                                <div class="node-pct" id="p-success">0%</div>
+                            </div>
+                            <div class="node-box border-red" id="n-fail">
+                                <div class="node-title">Transfer Fail (Left Queue)</div>
+                                <div class="node-num" id="v-fail">0</div>
+                                <div class="node-pct" id="p-fail">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-right-hr">
+                    <h2 class="section-title text-blue-title">NHÂN SỰ & THỰC THI</h2>
+                    <div class="hr-indicator-list">
+                        <div class="hr-item">
+                            <span class="hr-lbl">CSR dự kiến</span>
+                            <span class="hr-val" id="hr-exp">0</span>
+                        </div>
+                        <div class="hr-item">
+                            <span class="hr-lbl">CSR thực tế</span>
+                            <span class="hr-val" id="hr-act">0</span>
+                        </div>
+                        <div class="hr-item">
+                            <span class="hr-lbl">Attendance</span>
+                            <span class="hr-val text-blue" id="hr-atten">0%</span>
+                        </div>
+                        <div class="hr-item">
+                            <span class="hr-lbl">Avg productivity</span>
+                            <span class="hr-val text-orange" id="hr-prod">0</span>
+                        </div>
+                        <div class="hr-item">
+                            <span class="hr-lbl">FRT</span>
+                            <span class="hr-val" id="hr-frt">0s</span>
+                        </div>
+                        <div class="hr-item">
+                            <span class="hr-lbl">AHT</span>
+                            <span class="hr-val" id="hr-aht">00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="editor-panel" class="tab-panel">
+            <div class="editor-header-actions">
+                <button class="add-row-btn" onclick="addNewConfigRow()">➕ Tạo Dòng Dữ Liệu Mới</button>
+                <div class="inline-filter">
+                    <label>Lọc xem theo ngày:</label>
+                    <input type="date" id="editor-filter-date" onchange="applyEditorDateFilter()">
+                    <button class="clear-btn" onclick="clearEditorDateFilter()">Xóa lọc</button>
+                </div>
+            </div>
+
+            <h3 class="table-section-title">📊 BẢNG 1: QUẢN LÝ CHAT FLOW (Lưu vào Sheet ChatFlow)</h3>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th><th>ETC (Dự án)</th><th>Target Tiếp Nhận</th><th>Chat User</th><th>Total Chat</th>
+                            <th>Total Chatbot</th><th>CSR Support</th><th>Unassigned</th><th>Success Esc</th>
+                            <th>Chatbot CSR</th><th>Tag Transfer</th><th>Queue (Gốc)</th>
+                            <th class="calc-head">Computed Trans</th><th class="calc-head">CSR Pick</th>
+                            <th class="calc-head">CSR Only</th><th class="calc-head">Agent No Esc</th>
+                            <th class="calc-head">Fail No Bot</th><th class="calc-head">Fail Bot</th>
+                            <th class="calc-head">Total Fail</th><th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-chat-flow"></tbody>
+                </table>
+            </div>
+
+            <h3 class="table-section-title text-blue-title">👥 BẢNG 2: NHÂN SỰ PERFORMANCE (Lưu vào Sheet HRPerformance)</h3>
+            <div class="table-wrapper">
+                <table class="data-table hr-table-style">
+                    <thead>
+                        <tr>
+                            <th>Ngày (Read-only)</th><th>ETC (Read-only)</th><th>CSR Dự Kiến</th><th>CSR Thực Tế</th>
+                            <th>Attendance (%)</th><th>Productivity</th><th>FRT</th><th>AHT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-hr-performance"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
