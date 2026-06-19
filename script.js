@@ -169,14 +169,13 @@ function updateDashboardView(r) {
     document.getElementById("p-nobot").innerText = Number(r.totalChat) > 0 ? ((f.csrOnly / Number(r.totalChat)) * 100).toFixed(1) + "%" : "0%";
     
     document.getElementById("v-escalation").innerText = r.totalTagChatbotTransfer; 
-    document.getElementById("p-escalation").innerText = Number(r.totalChatbot) > 0 ? ((Number(r.totalTagChatbotTransfer) / Number(r.totalChatbot)) * 100).toFixed(1) + "%" : "0%";
-    
-    let botOnlyVal = Number(r.totalChatbot) - f.computedTransfer;
-    document.getElementById("v-botonly").innerText = botOnlyVal;
-    document.getElementById("p-botonly").innerText = Number(r.totalChatbot) > 0 ? ((botOnlyVal / Number(r.totalChatbot)) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("p-escalation").innerText = haveBotVal > 0 ? ((Number(r.totalTagChatbotTransfer) / haveBotVal) * 100).toFixed(1) + "%" : "0%";
+    let botOnlyVal = Number(r.totalChatbot) - f.computedTransfer; 
+document.getElementById("v-botonly").innerText = botOnlyVal;
+document.getElementById("p-botonly").innerText = haveBotVal > 0 ? ((botOnlyVal / haveBotVal) * 100).toFixed(1) + "%" : "0%";
 
     document.getElementById("v-csrpick").innerText = f.chatCsrPick;
-    document.getElementById("p-csrpick").innerText = haveBotVal > 0 ? ((f.chatCsrPick / haveBotVal) * 100).toFixed(1) + "%" : "0%";
+document.getElementById("p-csrpick").innerText = haveBotVal > 0 ? ((f.chatCsrPick / haveBotVal) * 100).toFixed(1) + "%" : "0%";
     
     document.getElementById("v-csronly").innerText = f.csrOnly;
     document.getElementById("p-csronly").innerText = f.csrOnly > 0 ? ((f.csrOnly / f.csrOnly) * 100).toFixed(1) + "%" : "100%";
