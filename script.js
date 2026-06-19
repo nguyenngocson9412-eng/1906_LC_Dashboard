@@ -168,14 +168,17 @@ function updateDashboardView(r) {
     document.getElementById("v-nobot").innerText = f.csrOnly; 
     document.getElementById("p-nobot").innerText = Number(r.totalChat) > 0 ? ((f.csrOnly / Number(r.totalChat)) * 100).toFixed(1) + "%" : "0%";
     
+    // ⭐ ĐOẠN ĐÃ ĐƯỢC CẬP NHẬT: Chia chuẩn 3 nhánh con theo Have Bot (haveBotVal) ⭐
     document.getElementById("v-escalation").innerText = r.totalTagChatbotTransfer; 
     document.getElementById("p-escalation").innerText = haveBotVal > 0 ? ((Number(r.totalTagChatbotTransfer) / haveBotVal) * 100).toFixed(1) + "%" : "0%";
-    let botOnlyVal = Number(r.totalChatbot) - f.computedTransfer; 
-document.getElementById("v-botonly").innerText = botOnlyVal;
-document.getElementById("p-botonly").innerText = haveBotVal > 0 ? ((botOnlyVal / haveBotVal) * 100).toFixed(1) + "%" : "0%";
+    
+    let botOnlyVal = Number(r.totalChatbot) - f.computedTransfer;
+    document.getElementById("v-botonly").innerText = botOnlyVal;
+    document.getElementById("p-botonly").innerText = haveBotVal > 0 ? ((botOnlyVal / haveBotVal) * 100).toFixed(1) + "%" : "0%";
 
     document.getElementById("v-csrpick").innerText = f.chatCsrPick;
-document.getElementById("p-csrpick").innerText = haveBotVal > 0 ? ((f.chatCsrPick / haveBotVal) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("p-csrpick").innerText = haveBotVal > 0 ? ((f.chatCsrPick / haveBotVal) * 100).toFixed(1) + "%" : "0%";
+    // ⭐ KẾT THÚC ĐOẠN SỬA ĐỒNG BỘ 100% ⭐
     
     document.getElementById("v-csronly").innerText = f.csrOnly;
     document.getElementById("p-csronly").innerText = f.csrOnly > 0 ? ((f.csrOnly / f.csrOnly) * 100).toFixed(1) + "%" : "100%";
@@ -183,7 +186,6 @@ document.getElementById("p-csrpick").innerText = haveBotVal > 0 ? ((f.chatCsrPic
     document.getElementById("v-unassigned").innerText = r.unassigned;
     document.getElementById("p-unassigned").innerText = f.csrOnly > 0 ? ((Number(r.unassigned) / f.csrOnly) * 100).toFixed(1) + "%" : "0%";
 
-    // Khắc phục lỗi trên + dưới không bằng 100% bằng cách chia chuẩn cho nhánh cha r.totalTagChatbotTransfer
     document.getElementById("v-success").innerText = r.successEscalated;
     document.getElementById("p-success").innerText = Number(r.totalTagChatbotTransfer) > 0 ? ((Number(r.successEscalated) / Number(r.totalTagChatbotTransfer)) * 100).toFixed(1) + "%" : "0%";
 
