@@ -3,211 +3,795 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Chat Ops Brief & Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Daily Chat Dashboard - Live Google Sheets Realtime</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* --- TỐI ƯU HÓA KHÔNG GIAN TOÀN MÀN HÌNH (NO SCROLL) --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            padding: 8px;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; 
+        }
+        .dashboard-container {
+            width: 100%;
+            max-width: 1650px;
+            height: 98vh; 
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #sync-status {
+            display: none !important;
+        }
+        
+        /* Header & Khu vực Bộ lọc mới (Highlight Title) */
+        .header-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .title-area h1 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+        .title-area p {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        /* --- THAY ĐỔI STYLE: LÀM NỔI BẬT BỘ LỌC THÀNH TIÊU ĐỀ BÁO CÁO --- */
+        .filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #ffffff;
+            padding: 4px;
+            border-radius: 12px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            padding: 6px 16px;
+            border-radius: 10px;
+            min-width: 190px;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+        .filter-group:focus-within, .filter-group:hover {
+            border-color: #4f46e5;
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+        }
+        .filter-group label {
+            font-size: 10px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 2px;
+        }
+        .filter-group select {
+            border: none;
+            background: transparent;
+            font-size: 16px; 
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+            padding-right: 20px;
+            width: 100%;
+            font-family: inherit;
+        }
+        #filter-date-group:focus-within, #filter-date-group:hover {
+            border-color: #0284c7;
+        }
+        #filter-date-group select {
+            color: #0284c7; 
+        }
+        #filter-etc-group select {
+            color: #4f46e5; 
+        }
+
+        .btn-pdf {
+            background-color: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+            transition: background 0.2s;
+        }
+        .btn-pdf:hover {
+            background-color: #dc2626;
+        }
+
+        .status-sync {
+            font-size: 10px;
+            font-weight: 600;
+            color: #2563eb;
+            background: #dbeafe;
+            padding: 3px 10px;
+            border-radius: 6px;
+            align-self: flex-start;
+        }
+
+        /* --- CẢI TIẾN LỚN: TIÊU ĐỀ 1, 2, 3, 4 TO HƠN VÀ HIGHLIGHT HƠN --- */
+        .panel {
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+        .panel-title {
+            padding: 8px 16px; /* Tăng padding tạo sự rộng rãi */
+            font-size: 13px;    /* Tăng cỡ chữ tiêu đề mục */
+            font-weight: 800;   /* Đẩy độ đậm lên tối đa */
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* Tạo bóng mờ cho tiêu đề nổi bật hẳn lên */
+        }
+        
+        .slate-t { background: linear-gradient(90deg, #334155, #475569); }
+        .purple-t { background: linear-gradient(90deg, #2e1065, #3b1e78); }
+        .blue-t { background: linear-gradient(90deg, #0747a6, #0052cc); }
+        .teal-t { background: linear-gradient(90deg, #0f766e, #0d9488); }
+
+        /* BẢNG 1: TỔNG QUAN HỖ TRỢ */
+        .overview-panel-content {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f8fafc;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 8px;
+        }
+        .info-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 70px;
+        }
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 82%;
+        }
+        .info-icon {
+            font-size: 12px;
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .info-body {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1;
+        }
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .bg-blue { background-color: #e0f2fe; color: #0369a1; }
+        .bg-indigo { background-color: #e0e7ff; color: #4338ca; }
+        .bg-purple { background-color: #f3e8ff; color: #6b21a8; }
+        .bg-emerald { background-color: #d1fae5; color: #065f46; }
+        .bg-amber { background-color: #fef3c7; color: #92400e; }
+        .bg-rose { background-color: #ffe4e6; color: #9f1239; }
+        .bar-blue { background: #0284c7; }
+        .bar-indigo { background: #4f46e5; }
+        .bar-purple { background: #8b5cf6; }
+        .bar-emerald { background: #10b981; }
+        .bar-amber { background: #f59e0b; }
+        .bar-rose { background: #f43f5e; }
+
+        .sub-target-banner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #ffffff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .target-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .target-box-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .target-box-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        /* LAYOUT CHÍNH */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1.72fr 1.28fr;
+            gap: 10px;
+            flex-grow: 1; 
+            min-height: 0; 
+        }
+
+        /* --- CẢI TIẾN MỤC 2: SƠ ĐỒ PHÂN LUỒNG SIÊU ĐẬM VÀ RÕ NÉT --- */
+        .tree-container {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            background: #fdfdfd;
+            position: relative;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        .connector-svg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+        .connector-svg path {
+            fill: none; stroke: #94a3b8; stroke-width: 2; /* Làm đường vẽ nhánh dày rõ hơn */
+        }
+        .tree-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            height: 100%;
+            z-index: 2;
+            position: relative;
+        }
+        .node {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 6px 12px;
+            min-width: 170px; /* Tăng chiều rộng để ôm trọn size chữ lớn không bị lỗi dòng */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .node-lbl {
+            font-size: 10.5px; 
+            color: #475569;
+            font-weight: 800; /* Đậm nét nhãn */
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            letter-spacing: 0.2px;
+        }
+        .node-val {
+            font-size: 15px; /* Tăng kích cỡ số liệu sơ đồ cây */
+            font-weight: 800; /* Tối đa độ đậm */
+            color: #0f172a;
+            line-height: 1.1;
+        }
+        .node-pct {
+            font-size: 10px; /* To hơn rõ rệt */
+            font-weight: 800;
+            color: #4f46e5;
+            background: #f0f4ff;
+            border: 1px solid #c7d2fe;
+            padding: 1px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 3px;
+        }
+        .n-total { border-left: 5px solid #4f46e5; }
+        .n-bot { border-left: 5px solid #0284c7; }
+        .n-nobot { border-left: 5px solid #ef4444; }
+        .n-success { border-left: 5px solid #16a34a; }
+        .n-fail { border-left: 5px solid #dc2626; }
+
+        /* CỘT PHẢI */
+        .sidebar-cols {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+            min-height: 0;
+        }
+        .sidebar-cols .panel {
+            flex: 1;
+            min-height: 0;
+        }
+        
+        /* --- CẢI TIẾN MỤC 3 & 4: INFOGRAPHIC HIGHLIGHT CHỮ & BADGE --- */
+        .hr-grid {
+            padding: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: #f8fafc;
+            height: 100%;
+            align-content: stretch;
+        }
+        .hr-item {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .hr-badge {
+            width: 32px; /* Tăng kích cỡ cụm vòng tròn icon */
+            height: 32px;
+            border-radius: 8px;
+            background: #f0f4ff;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.05);
+        }
+        .teal-b { background: #ccfbf1; color: #0f766e; }
+        .orange-b { background: #ffedd5; color: #ea580c; }
+        
+        .hr-lbl {
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 1px;
+        }
+        .hr-val {
+            font-size: 16px; /* Số liệu bứt phá kích thước, nhìn rõ ràng ngay lập tức */
+            font-weight: 800; /* Siêu đậm */
+            color: #0f172a;   /* Màu tương phản cao */
+            line-height: 1.2;
+        }
+
+        @media print {
+            body { padding: 0 !important; background: #ffffff !important; }
+            .dashboard-container { height: 100vh !important; max-height: 200mm !important; box-shadow: none !important; padding: 4px !important; gap: 6px !important; }
+            .info-card { height: 64px !important; }
+            .main-layout { gap: 6px !important; }
+            .tree-container { padding: 4px !important; }
+            .node { min-width: 150px !important; padding: 2px 6px !important; }
+            .hr-item { padding: 3px 6px !important; }
+        }
+    </style>
 </head>
 <body>
-    <header class="app-header">
-        <div class="header-left">
-            <h1>DAILY CHAT OPS BRIEF</h1>
-            <p>Hệ thống quản lý dữ liệu phân luồng vận hành LiveChat</p>
+
+<div class="dashboard-container" id="dashboard-content">
+    
+    <div class="header-banner">
+        <div class="title-area">
+            <h1>Daily Chat Report</h1>
+            <p>Dữ liệu kết nối tự động Thời gian thực (Realtime) với Google Sheets</p>
         </div>
-        <div class="header-right">
-            <div class="filter-box">
-                <label>ETC (Dự án):</label>
+        
+        <div class="filter-controls" id="controls-section">
+            <div class="filter-group" id="filter-etc-group">
+                <label for="filter-etc">📁 ETC</label>
                 <select id="filter-etc" onchange="onFilterChange()"></select>
             </div>
-            <div class="filter-box">
-                <label>Ngày báo cáo:</label>
+            <div class="filter-group" id="filter-date-group">
+                <label for="filter-date">📅 Chu kỳ báo cáo</label>
                 <select id="filter-date" onchange="onFilterChange()"></select>
             </div>
+            <button class="btn-pdf" onclick="exportDashboardToPDF()">📄 Xuất PDF</button>
         </div>
-    </header>
+    </div>
 
-    <nav class="tab-navigation">
-        <button class="tab-btn active" onclick="toggleTab('dashboard-panel', this)">📊 View Dashboard</button>
-        <button class="tab-btn" onclick="toggleTab('editor-panel', this)">📝 Nhập & Chỉnh sửa Dữ liệu</button>
-        <button class="sync-cloud-btn" onclick="saveToGoogleSheet()">☁️ Đồng bộ lên Google Sheet</button>
-    </nav>
+    <div class="status-sync" id="sync-status" style="display: none;"></div>
 
-    <main class="content-container">
-        <section id="dashboard-panel" class="tab-panel active">
-            <div class="top-kpi-row">
-                <div class="kpi-card">
-                    <div class="card-lbl">Chat Volume</div>
-                    <div class="card-val" id="kpi-vol">0</div>
+    <div class="panel">
+        <div class="panel-title slate-t">1: Tổng quan hỗ trợ</div>
+        <div class="overview-panel-content">
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Volume Inbound thực tế</div><div class="info-icon bg-blue">💬</div></div>
+                    <div class="info-body"><div class="info-value" id="info-inbound">0</div><div class="progress-container"><div class="progress-bar bar-blue" style="width: 100%"></div></div></div>
                 </div>
-                <div class="kpi-card">
-                    <div class="card-lbl">Total Chat Transfer</div>
-                    <div class="card-val" id="kpi-total-trans">0</div>
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Total chat user</div><div class="info-icon bg-indigo">👥</div></div>
+                    <div class="info-body"><div class="info-value" id="info-user">0</div><div class="progress-container"><div class="progress-bar bar-indigo" id="progress-user"></div></div></div>
                 </div>
-                <div class="kpi-card">
-                    <div class="card-lbl">Chat Users</div>
-                    <div class="card-val" id="kpi-users">0</div>
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Total chat transfer</div><div class="info-icon bg-purple">🔀</div></div>
+                    <div class="info-body"><div class="info-value" id="info-transfer">0</div><div class="progress-container"><div class="progress-bar bar-purple" id="progress-transfer"></div></div></div>
                 </div>
-                <div class="kpi-card">
-                    <div class="card-lbl">Transfer Fail (Left Queue)</div>
-                    <div class="card-val" id="kpi-queued">0</div>
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Volume hỗ trợ thực tế</div><div class="info-icon bg-emerald">🎧</div></div>
+                    <div class="info-body"><div class="info-value" id="info-support" style="color: #10b981;">0</div><div class="progress-container"><div class="progress-bar bar-emerald" id="progress-support"></div></div></div>
                 </div>
-                <div class="kpi-card">
-                    <div class="card-lbl">Assisted (CSR Support)</div>
-                    <div class="card-val" id="kpi-assisted">0</div>
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Tỉ lệ hỗ trợ over tỉ lệ</div><div class="info-icon bg-amber">📊</div></div>
+                    <div class="info-body"><div class="info-value" id="info-rate-total">0%</div><div class="progress-container"><div class="progress-bar bar-amber" id="progress-rate-total"></div></div></div>
                 </div>
-                <div class="kpi-card">
-                    <div class="card-lbl">% Assisted / Total Chat Transfer</div>
-                    <div class="card-val text-green" id="kpi-rate">0%</div>
+                <div class="info-card">
+                    <div class="info-header"><div class="info-title">Tỉ lệ hỗ trợ chat transfer</div><div class="info-icon bg-rose">📈</div></div>
+                    <div class="info-body"><div class="info-value" id="info-rate-trans">0%</div><div class="progress-container"><div class="progress-bar bar-rose" id="progress-rate-trans"></div></div></div>
                 </div>
             </div>
-
-            <div class="target-sub-bar">
-                🎯 Target tiếp nhận: <span id="sub-target" class="bold">0</span> | 
-                📈 Tỷ lệ KPI tiếp nhận (Assisted / Target): <span id="sub-kpi" class="bold text-green">0%</span>
-            </div>
-
-            <div class="dashboard-grid">
-                <div class="grid-left-tree">
-                    <h2 class="section-title">DETAILS (SƠ ĐỒ LUỒNG PHÂN PHỐI CHAT)</h2>
-                    <div id="treeContainer" class="tree-container">
-                        <svg id="treeSvg"></svg>
-                        
-                        <div class="tree-col col-1">
-                            <div class="node-box" id="n-total">
-                                <div class="node-title">Total Chat</div>
-                                <div class="node-num" id="v-total">0</div>
-                                <div class="node-pct" id="p-total">100%</div>
-                            </div>
-                        </div>
-                        
-                        <div class="tree-col col-2">
-                            <div class="node-box border-blue" id="n-havebot">
-                                <div class="node-title">Have Bot</div>
-                                <div class="node-num" id="v-havebot">0</div>
-                                <div class="node-pct" id="p-havebot">0%</div>
-                            </div>
-                            <div class="node-box border-purple" id="n-nobot">
-                                <div class="node-title">No Bot</div>
-                                <div class="node-num" id="v-nobot">0</div>
-                                <div class="node-pct" id="p-nobot">0%</div>
-                            </div>
-                        </div>
-                        
-                        <div class="tree-col col-3">
-                            <div class="node-box" id="n-escalation">
-                                <div class="node-title">BOT Escalation (Transfer)</div>
-                                <div class="node-num" id="v-escalation">0</div>
-                                <div class="node-pct" id="p-escalation">0%</div>
-                            </div>
-                            <div class="node-box" id="n-botonly">
-                                <div class="node-title">BOT only / End</div>
-                                <div class="node-num" id="v-botonly">0</div>
-                                <div class="node-pct" id="p-botonly">0%</div>
-                            </div>
-                            <div class="node-box" id="n-csrpick">
-                                <div class="node-title">Chat CSR pick from chatbot</div>
-                                <div class="node-num" id="v-csrpick">0</div>
-                                <div class="node-pct" id="p-csrpick">0%</div>
-                            </div>
-                            <div class="node-box" id="n-csronly">
-                                <div class="node-title">CSR only</div>
-                                <div class="node-num" id="v-csronly">0</div>
-                                <div class="node-pct" id="p-csronly">100%</div>
-                            </div>
-                            <div class="node-box" id="n-unassigned">
-                                <div class="node-title">Unassigned</div>
-                                <div class="node-num" id="v-unassigned">0</div>
-                                <div class="node-pct" id="p-unassigned">0%</div>
-                            </div>
-                        </div>
-                        
-                        <div class="tree-col col-4">
-                            <div class="node-box border-green" id="n-success">
-                                <div class="node-title">Transfer Success</div>
-                                <div class="node-num" id="v-success">0</div>
-                                <div class="node-pct" id="p-success">0%</div>
-                            </div>
-                            <div class="node-box border-red" id="n-fail">
-                                <div class="node-title">Transfer Fail (Left Queue)</div>
-                                <div class="node-num" id="v-fail">0</div>
-                                <div class="node-pct" id="p-fail">0%</div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="sub-target-banner">
+                <div class="target-box">
+                    <div class="target-box-icon">🎯</div>
+                    <div><span class="target-box-title">Target tiếp nhận:</span> <span class="target-box-value" id="sub-target">0</span></div>
                 </div>
-
-                <div class="grid-right-hr">
-                    <h2 class="section-title text-blue-title">NHÂN SỰ & THỰC THI</h2>
-                    <div class="hr-indicator-list">
-                        <div class="hr-item">
-                            <span class="hr-lbl">CSR dự kiến</span>
-                            <span class="hr-val" id="hr-exp">0</span>
-                        </div>
-                        <div class="hr-item">
-                            <span class="hr-lbl">CSR thực tế</span>
-                            <span class="hr-val" id="hr-act">0</span>
-                        </div>
-                        <div class="hr-item">
-                            <span class="hr-lbl">Attendance</span>
-                            <span class="hr-val text-blue" id="hr-atten">0%</span>
-                        </div>
-                        <div class="hr-item">
-                            <span class="hr-lbl">Avg productivity</span>
-                            <span class="hr-val text-orange" id="hr-prod">0</span>
-                        </div>
-                        <div class="hr-item">
-                            <span class="hr-lbl">FRT</span>
-                            <span class="hr-val" id="hr-frt">0s</span>
-                        </div>
-                        <div class="hr-item">
-                            <span class="hr-lbl">AHT</span>
-                            <span class="hr-val" id="hr-aht">00:00</span>
-                        </div>
-                    </div>
+                <div class="target-box">
+                    <div class="target-box-icon">📈</div>
+                    <div><span class="target-box-title">Tỷ lệ đạt KPI tiếp nhận:</span> <span class="target-box-value" id="sub-kpi" style="color: #10b981;">0%</span></div>
                 </div>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <section id="editor-panel" class="tab-panel">
-            <div class="editor-header-actions">
-                <button class="add-row-btn" onclick="addNewConfigRow()">➕ Tạo Dòng Dữ Liệu Mới</button>
-                <div class="inline-filter">
-                    <label>Lọc xem theo ngày:</label>
-                    <input type="date" id="editor-filter-date" onchange="applyEditorDateFilter()">
-                    <button class="clear-btn" onclick="clearEditorDateFilter()">Xóa lọc</button>
+    <div class="main-layout">
+        
+        <div class="panel">
+            <div class="panel-title purple-t">2: Sơ đồ phân luồng cuộc Chat (Details)</div>
+            <div class="tree-container" id="treeContainer">
+                <svg class="connector-svg" id="treeSvg"></svg>
+                <div class="tree-col">
+                    <div class="node n-total" id="n-total"><div class="node-lbl">Total Chat</div><div class="node-val" id="v-total">0</div></div>
+                </div>
+                <div class="tree-col">
+                    <div class="node n-bot" id="n-havebot"><div class="node-lbl">Have Bot</div><div class="node-val" id="v-havebot">0</div><div class="node-pct" id="p-havebot">0%</div></div>
+                    <div class="node n-nobot" id="n-nobot"><div class="node-lbl">No Bot</div><div class="node-val" id="v-nobot">0</div><div class="node-pct" id="p-nobot">0%</div></div>
+                </div>
+                <div class="tree-col">
+                    <div class="node n-bot" id="n-escalation"><div class="node-lbl">BOT Escalation</div><div class="node-val" id="v-escalation">0</div><div class="node-pct" id="p-escalation">0%</div></div>
+                    <div class="node" id="n-botonly"><div class="node-lbl">BOT only / End</div><div class="node-val" id="v-botonly">0</div><div class="node-pct" id="p-botonly">0%</div></div>
+                    <div class="node" id="n-csrpick"><div class="node-lbl">CSR pick fr bot</div><div class="node-val" id="v-csrpick">0</div><div class="node-pct" id="p-csrpick">0%</div></div>
+                    <div class="node" id="n-csronly"><div class="node-lbl">CSR only</div><div class="node-val" id="v-csronly">0</div><div class="node-pct" id="p-csronly">0%</div></div>
+                    <div class="node n-nobot" id="n-unassigned"><div class="node-lbl">Unassigned</div><div class="node-val" id="v-unassigned">0</div><div class="node-pct" id="p-unassigned">0%</div></div>
+                </div>
+                <div class="tree-col" style="justify-content: flex-start; gap: 15px; padding-top: 15px;">
+                    <div class="node n-success" id="n-success"><div class="node-lbl">Transfer Success</div><div class="node-val" id="v-success">0</div><div class="node-pct" id="p-success">0%</div></div>
+                    <div class="node n-fail" id="n-fail"><div class="node-lbl">Transfer Fail</div><div class="node-val" id="v-fail">0</div><div class="node-pct" id="p-fail">0%</div></div>
                 </div>
             </div>
+        </div>
 
-            <h3 class="table-section-title">📊 BẢNG 1: QUẢN LÝ CHAT FLOW (Lưu vào Sheet ChatFlow)</h3>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Ngày</th><th>ETC (Dự án)</th><th>Target Tiếp Nhận</th><th>Chat User</th><th>Total Chat</th>
-                            <th>Total Chatbot</th><th>CSR Support</th><th>Unassigned</th><th>Success Esc</th>
-                            <th>Chatbot CSR</th><th>Tag Transfer</th><th>Queue (Gốc)</th>
-                            <th class="calc-head">Computed Trans</th><th class="calc-head">CSR Pick</th>
-                            <th class="calc-head">CSR Only</th><th class="calc-head">Agent No Esc</th>
-                            <th class="calc-head">Fail No Bot</th><th class="calc-head">Fail Bot</th>
-                            <th class="calc-head">Total Fail</th><th>Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-chat-flow"></tbody>
-                </table>
+        <div class="sidebar-cols">
+            <div class="panel">
+                <div class="panel-title blue-t">3: Hiệu suất vận hành (Operations)</div>
+                <div class="hr-grid">
+                    <div class="hr-item"><div class="hr-badge orange-b">👥</div><div><div class="hr-lbl">CSR Dự kiến</div><div class="hr-val" id="hr-csr-exp">0</div></div></div>
+                    <div class="hr-item"><div class="hr-badge orange-b">👨‍💻</div><div><div class="hr-lbl">CSR Thực tế</div><div class="hr-val" id="hr-csr-act">0</div></div></div>
+                    <div class="hr-item"><div class="hr-badge">📈</div><div><div class="hr-lbl">Attendance</div><div class="hr-val" id="hr-atten">0%</div></div></div>
+                    <div class="hr-item"><div class="hr-badge">⚡</div><div><div class="hr-lbl">Productivity</div><div class="hr-val" id="hr-prod">0</div></div></div>
+                    <div class="hr-item"><div class="hr-badge">⏱️</div><div><div class="hr-lbl">FRT</div><div class="hr-val" id="hr-frt">0s</div></div></div>
+                    <div class="hr-item"><div class="hr-badge">🕒</div><div><div class="hr-lbl">AHT</div><div class="hr-val" id="hr-aht">00:00</div></div></div>
+                </div>
             </div>
+            
+            <div class="panel">
+                <div class="panel-title teal-t">4: Đánh giá chất lượng (CSAT Score)</div>
+                <div class="hr-grid">
+                    <div class="hr-item"><div class="hr-badge teal-b">⭐</div><div><div class="hr-lbl">Avg CSAT System</div><div class="hr-val" id="csat-avg-sys">0%</div></div></div>
+                    <div class="hr-item"><div class="hr-badge teal-b">👤</div><div><div class="hr-lbl">Avg CSAT Agent</div><div class="hr-val" id="csat-avg-agt">0%</div></div></div>
+                    <div class="hr-item"><div class="hr-badge teal-b">👍</div><div><div class="hr-lbl">Rate Good</div><div class="hr-val" id="csat-good">0</div></div></div>
+                    <div class="hr-item"><div class="hr-badge teal-b">👎</div><div><div class="hr-lbl">Rate Bad</div><div class="hr-val" id="csat-bad">0</div></div></div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
 
-            <h3 class="table-section-title text-blue-title">👥 BẢNG 2: NHÂN SỰ PERFORMANCE (Lưu vào Sheet HRPerformance)</h3>
-            <div class="table-wrapper">
-                <table class="data-table hr-table-style">
-                    <thead>
-                        <tr>
-                            <th>Ngày (Read-only)</th><th>ETC (Read-only)</th><th>CSR Dự Kiến</th><th>CSR Thực Tế</th>
-                            <th>Attendance (%)</th><th>Productivity</th><th>FRT</th><th>AHT</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-hr-performance"></tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-    <script src="script.js"></script>
+<script>
+const googleSheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRIrCU6kRDRVe9ivxLuiaroX2A5JK8GT6PNjsnNjj11-aMFWtg8au3rLLvbAt6m6xauHW9ZhzMRUzYW/pub?output=csv";
+let coreDatabase = [];
+
+window.onload = function() {
+    loadRealtimeGoogleSheet();
+    window.addEventListener('resize', connectAllNodes);
+    setInterval(loadRealtimeGoogleSheet, 30000);
+};
+
+async function loadRealtimeGoogleSheet() {
+    try {
+        const response = await fetch(googleSheetCSVUrl);
+        if (!response.ok) throw new Error('Không thể tải file CSV từ Google Sheets');
+        const csvText = await response.text();
+        
+        coreDatabase = parseGoogleSheetsCSV(csvText);
+        if (coreDatabase.length === 0) {
+            throw new Error('Dữ liệu trống hoặc sai định dạng dòng');
+        }
+
+        let timeStamp = new Date();
+        const statusEl = document.getElementById("sync-status");
+        statusEl.style.background = "#dcfce7"; 
+        statusEl.style.color = "#16a34a";
+        statusEl.innerText = `✅ Đã đồng bộ Realtime: ${timeStamp.toLocaleTimeString()}`;
+        
+        const activeEtc = document.getElementById("filter-etc").value;
+        const activeDate = document.getElementById("filter-date").value;
+        renderFilterDropdowns(activeEtc, activeDate);
+        onFilterChange();
+    } catch (error) {
+        console.error("Lỗi:", error);
+        const statusEl = document.getElementById("sync-status");
+        statusEl.style.background = "#fee2e2"; 
+        statusEl.style.color = "#dc2626";
+        statusEl.innerText = "❌ Lỗi bảo mật tệp cục bộ (CORS). Vui lòng chạy file HTML thông qua Local Server (Live Server / Firefox) theo hướng dẫn.";
+    }
+}
+
+function parseGoogleSheetsCSV(text) {
+    const lines = text.split(/\r?\n/);
+    if (lines.length === 0) return [];
+    
+    let headers = [];
+    let data = [];
+    let isHeaderFound = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        
+        let cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        
+        if (cols[0] === "etc" && cols[1] === "dateRange") {
+            headers = cols;
+            isHeaderFound = true;
+            continue;
+        }
+        
+        if (isHeaderFound && headers.length > 0) {
+            if (cols[0] === "etc" || cols[0] === "") continue;
+            if (cols.length < 2) continue;
+            
+            const obj = {};
+            headers.forEach((header, index) => {
+                obj[header] = cols[index] || "";
+            });
+            
+            if (obj.etc && obj.dateRange) {
+                data.push(obj);
+            }
+        }
+    }
+    return data;
+}
+
+function renderFilterDropdowns(preferredEtc, preferredDate) {
+    const etcSelect = document.getElementById("filter-etc");
+    const dateSelect = document.getElementById("filter-date");
+    if (coreDatabase.length === 0) return;
+    
+    let listEtc = [...new Set(coreDatabase.map(item => item.etc))].filter(Boolean);
+    let listDate = [...new Set(coreDatabase.map(item => item.dateRange))].filter(Boolean).sort();
+    
+    etcSelect.innerHTML = listEtc.map(e => `<option value="${e}">${e}</option>`).join('');
+    dateSelect.innerHTML = listDate.map(d => `<option value="${d}">${d}</option>`).join('');
+    
+    if (preferredEtc && listEtc.includes(preferredEtc)) etcSelect.value = preferredEtc;
+    if (preferredDate && listDate.includes(preferredDate)) dateSelect.value = preferredDate;
+}
+
+function onFilterChange() {
+    const targetEtc = document.getElementById("filter-etc").value;
+    const targetDate = document.getElementById("filter-date").value;
+    let matchedRecord = coreDatabase.find(row => row.etc === targetEtc && row.dateRange === targetDate);
+    if (matchedRecord) populateDataToDashboard(matchedRecord);
+}
+
+function populateDataToDashboard(r) {
+    const totalChat = parseInt(r.totalChat) || 0;
+    const haveBot = parseInt(r.haveBot) || 0;
+    const noBot = parseInt(r.noBot) || 0;
+    const botEscalation = parseInt(r.botEscalation) || 0;
+    const botOnly = parseInt(r.botOnly) || 0;
+    const csrPickBot = parseInt(r.csrPickBot) || 0;
+    const csrOnly = parseInt(r.csrOnly) || 0;
+    const unassigned = parseInt(r.unassigned) || 0;
+    const transSuccess = parseInt(r.transSuccess) || 0;
+    const transFail = parseInt(r.transFail) || 0;
+    const totalTransDashboard = parseInt(r.totalTransDashboard) || 0;
+    const assistedDashboard = parseInt(r.assistedDashboard) || 0;
+    const targetTiepNhan = parseInt(r.targetTiepNhan) || 0;
+    const chatUser = parseInt(r.chatUser) || 0;
+
+    document.getElementById("info-inbound").innerText = totalChat.toLocaleString();
+    document.getElementById("info-user").innerText = chatUser.toLocaleString();
+    document.getElementById("info-transfer").innerText = totalTransDashboard.toLocaleString();
+    document.getElementById("info-support").innerText = assistedDashboard.toLocaleString();
+
+    let pUserRate = totalChat > 0 ? (chatUser / totalChat) * 100 : 0;
+    let pTransRate = totalChat > 0 ? (totalTransDashboard / totalChat) * 100 : 0;
+    let pSupportRate = totalTransDashboard > 0 ? (assistedDashboard / totalTransDashboard) * 100 : 0;
+    let overRateValue = totalChat > 0 ? (assistedDashboard / totalChat) * 100 : 0;
+    let transRateValue = totalTransDashboard > 0 ? (assistedDashboard / totalTransDashboard) * 100 : 0;
+
+    document.getElementById("info-rate-total").innerText = overRateValue.toFixed(1) + "%";
+    document.getElementById("info-rate-trans").innerText = transRateValue.toFixed(1) + "%";
+
+    document.getElementById("progress-user").style.width = Math.min(pUserRate, 100) + "%";
+    document.getElementById("progress-transfer").style.width = Math.min(pTransRate, 100) + "%";
+    document.getElementById("progress-support").style.width = Math.min(pSupportRate, 100) + "%";
+    document.getElementById("progress-rate-total").style.width = Math.min(overRateValue, 100) + "%";
+    document.getElementById("progress-rate-trans").style.width = Math.min(transRateValue, 100) + "%";
+
+    document.getElementById("sub-target").innerText = targetTiepNhan.toLocaleString();
+    document.getElementById("sub-kpi").innerText = targetTiepNhan > 0 ? ((assistedDashboard / targetTiepNhan) * 100).toFixed(1) + "%" : "0%";
+
+    document.getElementById("v-total").innerText = totalChat.toLocaleString();
+    document.getElementById("v-havebot").innerText = haveBot.toLocaleString();
+    document.getElementById("p-havebot").innerText = totalChat > 0 ? ((haveBot / totalChat) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("v-nobot").innerText = noBot.toLocaleString();
+    document.getElementById("p-nobot").innerText = totalChat > 0 ? ((noBot / totalChat) * 100).toFixed(1) + "%" : "0%";
+    
+    document.getElementById("v-escalation").innerText = botEscalation.toLocaleString();
+    document.getElementById("p-escalation").innerText = haveBot > 0 ? ((botEscalation / haveBot) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("v-botonly").innerText = botOnly.toLocaleString();
+    document.getElementById("p-botonly").innerText = haveBot > 0 ? ((botOnly / haveBot) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("v-csrpick").innerText = csrPickBot.toLocaleString();
+    document.getElementById("p-csrpick").innerText = haveBot > 0 ? ((csrPickBot / haveBot) * 100).toFixed(1) + "%" : "0%";
+
+    document.getElementById("v-csronly").innerText = csrOnly.toLocaleString();
+    document.getElementById("p-csronly").innerText = noBot > 0 ? ((csrOnly / noBot) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("v-unassigned").innerText = unassigned.toLocaleString();
+    document.getElementById("p-unassigned").innerText = noBot > 0 ? ((unassigned / noBot) * 100).toFixed(1) + "%" : "0%";
+
+    document.getElementById("v-success").innerText = transSuccess.toLocaleString();
+    document.getElementById("p-success").innerText = botEscalation > 0 ? ((transSuccess / botEscalation) * 100).toFixed(1) + "%" : "0%";
+    document.getElementById("v-fail").innerText = transFail.toLocaleString();
+    document.getElementById("p-fail").innerText = botEscalation > 0 ? ((transFail / botEscalation) * 100).toFixed(1) + "%" : "0%";
+    
+    document.getElementById("hr-csr-exp").innerText = r.csrExpected || "0";
+    document.getElementById("hr-csr-act").innerText = r.csrActual || "0";
+    document.getElementById("hr-atten").innerText = (r.attendance || "0") + "%";
+    document.getElementById("hr-prod").innerText = r.productivity || "0";
+    document.getElementById("hr-frt").innerText = (r.frt || "0") + "s";
+    document.getElementById("hr-aht").innerText = r.aht || "00:00";
+    
+    document.getElementById("csat-avg-sys").innerText = (r.csatAvgSys || "0") + "%";
+    document.getElementById("csat-avg-agt").innerText = (r.csatAvgAgt || "0") + "%";
+    document.getElementById("csat-good").innerText = (parseInt(r.csatGood) || 0).toLocaleString();
+    document.getElementById("csat-bad").innerText = (parseInt(r.csatBad) || 0).toLocaleString();
+
+    setTimeout(connectAllNodes, 80);
+}
+
+function drawSingleLink(parentID, childID) {
+    const svg = document.getElementById("treeSvg");
+    const container = document.getElementById("treeContainer").getBoundingClientRect();
+    const parentElement = document.getElementById(parentID);
+    const childElement = document.getElementById(childID);
+    if (!parentElement || !childElement) return;
+    
+    const pBox = parentElement.getBoundingClientRect();
+    const cBox = childElement.getBoundingClientRect();
+    
+    let x1 = pBox.right - container.left;
+    let y1 = (pBox.top + pBox.bottom) / 2 - container.top;
+    let x2 = cBox.left - container.left;
+    let y2 = (cBox.top + cBox.bottom) / 2 - container.top;
+    
+    let controlX = x1 + (x2 - x1) / 2;
+    let dPath = `M ${x1} ${y1} C ${controlX} ${y1}, ${controlX} ${y2}, ${x2} ${y2}`;
+    
+    let pathNode = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    pathNode.setAttribute("d", dPath);
+    svg.appendChild(pathNode);
+}
+
+function connectAllNodes() {
+    const svg = document.getElementById("treeSvg");
+    if (!svg) return; svg.innerHTML = "";
+    drawSingleLink("n-total", "n-havebot");
+    drawSingleLink("n-total", "n-nobot");
+    drawSingleLink("n-havebot", "n-escalation");
+    drawSingleLink("n-havebot", "n-botonly");
+    drawSingleLink("n-havebot", "n-csrpick");
+    drawSingleLink("n-nobot", "n-csronly");
+    drawSingleLink("n-nobot", "n-unassigned");
+    drawSingleLink("n-escalation", "n-success");
+    drawSingleLink("n-escalation", "n-fail");
+}
+
+function exportDashboardToPDF() {
+    const element = document.getElementById('dashboard-content');
+    const controls = document.getElementById('controls-section');
+    const syncStatus = document.getElementById('sync-status');
+    
+    const project = document.getElementById('filter-etc').value || 'ETC';
+    const week = document.getElementById('filter-date').value || 'Week';
+    const fileName = `Weekly_Report_${project}_${week.replace(/[\s/:]/g, '_')}.pdf`;
+    
+    controls.style.display = 'none';
+    syncStatus.style.display = 'none';
+    
+    const opt = {
+        margin:       [2, 2, 2, 2], 
+        filename:     fileName,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak:    { mode: 'avoid' } 
+    };
+    
+    html2pdf().set(opt).from(element).save().then(() => {
+        controls.style.display = 'flex';
+        syncStatus.style.display = 'block';
+        connectAllNodes();
+    }).catch(err => {
+        console.error("Lỗi xuất PDF:", err);
+        controls.style.display = 'flex';
+        syncStatus.style.display = 'block';
+    });
+}
+</script>
 </body>
 </html>
